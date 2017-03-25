@@ -11,6 +11,7 @@ import logging
 import pandas
 import numpy
 import os
+from functools import reduce
 
 def append_dfs(prv_df, nxt_df):
     """
@@ -64,7 +65,7 @@ def exchange_acs_for_ticker(weight_df, ticker_class_dict, date, asset_class, tic
 
     #get the tickers with the given asset class
     l = []
-    for key, value in d.iteritems():
+    for key, value in d.items():
         if value == asset_class: l.append(key)
 
     weight_df.loc[dt: , l] = 0.
@@ -144,12 +145,12 @@ def append_store_prices(ticker_list, store_path, start = '01/01/1990'):
          successes ands failures
     """
     store = _open_store(store_path)
-    store_keys = map(lambda x: x.strip('/'), store.keys())
+    store_keys = [x.strip('/') for x in list(store.keys())]
     not_in_store = numpy.setdiff1d(ticker_list, store_keys )
     new_prices = tickers_to_dict(not_in_store, start = start)
 
     #attempt to add the new values to the store
-    for val in new_prices.keys():
+    for val in list(new_prices.keys()):
         try:
             store.put(val, new_prices[val])
             logging.log(20, "{0} has been stored".format( val))
@@ -183,7 +184,7 @@ def check_store_for_tickers(ticker_list, store):
         #pandas.Index is not sortable, so much tolist() it
         ticker_list = ticker_list.tolist()
 
-    store_keys = map(lambda x: x.strip('/'), store.keys())
+    store_keys = [x.strip('/') for x in list(store.keys())]
     not_in_store = numpy.setdiff1d(ticker_list, store_keys)
 
     #if len(not_in_store) == 0, all tickers are present
@@ -192,7 +193,7 @@ def check_store_for_tickers(ticker_list, store):
         ret_val = True
     else:
         for ticker in not_in_store:
-            print "store does not contain " + ticker
+            print(("store does not contain {}".format(ticker)))
         ret_val = False
     return ret_val
 
@@ -221,17 +222,17 @@ def check_store_path_for_tickers(ticker_list, store_path):
         #pandas.Index is not sortable, so much tolist() it
         ticker_list = ticker_list.tolist()
 
-    store_keys = map(lambda x: x.strip('/'), store.keys())
+    store_keys = [x.strip('/') for x in list(store.keys())]
     not_in_store = numpy.setdiff1d(ticker_list, store_keys)
     store.close()
 
     #if len(not_in_store) == 0, all tickers are present
     if not len(not_in_store):
-        print "All tickers in store"
+        print ("All tickers in store")
         ret_val = True
     else:
         for ticker in not_in_store:
-            print "store does not contain " + ticker
+            print(("store does not contain {}".format(ticker)))
         ret_val = False
     return ret_val
 
@@ -259,7 +260,7 @@ def check_trade_price_start(weight_df, price_df):
 
     if set(weight_df.columns) != intrsct:
 
-        raise KeyError, "Not all tickers in weight_df are in price_df"
+        raise "{} Not all tickers in weight_df are in price_df"
             
 
     ret_d = {}
@@ -283,7 +284,7 @@ def create_data_store(ticker_list, store_path):
     """
     #check to make sure the store doesn't already exist
     if os.path.isfile(store_path):
-        print "File " + store_path + " already exists"
+        print(("File {} already exists".format(store_path)))
         return
     
     store = pandas.HDFStore(store_path, 'w')
@@ -292,16 +293,16 @@ def create_data_store(ticker_list, store_path):
         try:
             tmp = tickers_to_dict(ticker, 'yahoo', start = '01/01/2000')
             store.put(ticker, tmp)
-            print ticker + " added to store"
+            print(("{} added to store".format(ticker)))
             success += 1
         except:
-            print "unable to add " + ticker + " to store"
+            print(("unable to add {} to store".format(ticker)))
     store.close()
 
     if success == 0: #none of it worked, delete the store
-        print "Creation Failed"
+        print ("Creation Failed")
         os.remove(path)
-    print 
+    print() 
     return None
 
 def first_price_date_get_prices(ticker_list):
@@ -359,13 +360,12 @@ def first_valid_date(prices):
         :class:`pandas.Timestamp` 
    """
     iter_dict = { pandas.DataFrame: lambda x: x.columns,
-                  dict: lambda x: x.keys() } 
+                  dict: lambda x: list(x.keys()) } 
     try:
-        each_first = map(lambda x: prices[x].first_valid_index(),
-                         iter_dict[ type(prices) ](prices) )
+        each_first = [prices[x].first_valid_index() for x in iter_dict[ type(prices) ](prices)]
         return max(each_first)
     except KeyError:
-        print "prices must be a DataFrame or dictionary"
+        print("prices must be a DataFrame or dictionary")
         return
 
 def gen_gbm_price_series(num_years, N, price_0, vol, drift):
@@ -441,8 +441,7 @@ def index_multi_union(frame_list):
 
 
     return reduce(lambda x, y: x | y, 
-                  map(lambda x: x.dropna().index, 
-                      frame_list)
+                  [x.dropna().index for x in frame_list]
     )
 
 def index_multi_intersect(frame_list):
@@ -461,8 +460,7 @@ def index_multi_intersect(frame_list):
     """
 
     return reduce(lambda x, y: x & y, 
-                  map(lambda x: x.dropna().index, 
-                      frame_list) 
+                  [x.dropna().index for x in frame_list] 
     )
 
 def join_on_index(df_list, index):
@@ -478,7 +476,7 @@ def join_on_index(df_list, index):
         index: :class:`Index` on which to join all of the DataFrames
     """
     return pandas.concat( 
-                          map( lambda x: x.reindex(index), df_list), 
+                          [x.reindex(index) for x in df_list], 
                           axis = 1
     )
 
@@ -505,7 +503,7 @@ def normalized_price(price_df):
 
     typ = type(price_df)
     if null_d[typ](price_df):
-        raise ValueError, "cannot contain null values"
+        raise ValueError("cannot contain null values")
 
     return calc_d[typ](price_df)
 
@@ -560,7 +558,7 @@ def rets_to_price(rets, ret_typ = 'log', start_value = 100.):
         )
 
     else:
-        raise TypeError, "rets must be Series or DataFrame"
+        raise TypeError("rets must be Series or DataFrame")
 
 
 def perturbate_asset(frame, key, eps):
@@ -632,7 +630,7 @@ def tickers_to_dict(ticker_list, api = 'yahoo', start = '01/01/1990'):
         :class:`pandas.DataFrame` when the ``ticker_list`` is 
         :class:`str`
     """
-    if isinstance(ticker_list, (str, unicode)):
+    if isinstance(ticker_list, str):
         return __get_data(ticker_list, api = api, start = start)
     else:
         d = {}
@@ -666,7 +664,7 @@ def tickers_to_frame(ticker_list, api = 'yahoo', start = '01/01/1990',
         :class:`str`
     """
     
-    if isinstance(ticker_list, (str, unicode)):
+    if isinstance(ticker_list, str):
         return __get_data(ticker_list, api = api, start = start)[join_col]
     else:
         d = {}
@@ -703,7 +701,7 @@ def ticks_to_frame_from_store(ticker_list, store_path,  join_col = 'Adj Close'):
     """
     store = _open_store(store_path)
 
-    if isinstance(ticker_list, (str, unicode)):
+    if isinstance(ticker_list, str):
         ret_series = store[ticker_list][join_col]
         store.close()
         return ret_series
@@ -733,10 +731,10 @@ def create_store_master_index(store_path):
     """
     store = _open_store(store_path)
 
-    keys = store.keys()
+    keys = list(store.keys())
 
     if '/IND3X' in keys:
-        print "u'IND3X' already exists in HDFStore at {0}".format(store_path)
+        print("u'IND3X' already exists in HDFStore at {0}".format(store_path))
 
         store.close()
         return
@@ -759,8 +757,8 @@ def union_store_indexes(store):
         the store
 
     """
-    key_iter = (key for key in store.keys())
-    ind = store.get(key_iter.next()).index
+    key_iter = (key for key in list(store.keys()))
+    ind = store.get(next(key_iter)).index
     union = ind.copy()
 
     for key in key_iter:
@@ -782,7 +780,7 @@ def create_store_cash(store_path):
 
     """
     store = _open_store(store_path)
-    keys = store.keys()
+    keys = list(store.keys())
     if '/CA5H' in keys:
         logging.log(1, "CA5H prices already exists")
         store.close()
@@ -855,8 +853,8 @@ def update_store_cash(store_path):
         master_ind = store.get('IND3X')
         cash = store.get('CA5H')
     except KeyError:
-        print "store doesn't contain {0} and / or {1}".format(
-            'CA5H', 'IND3X')
+        print("store doesn't contain {0} and / or {1}".format(
+            'CA5H', 'IND3X'))
         store.close()
         raise
 
@@ -875,7 +873,7 @@ def update_store_cash(store_path):
             )
             store.put('CA5H', cash)
         except:
-            print "Error updating cash"
+            print("Error updating cash")
 
     store.close()
     return None
@@ -927,9 +925,9 @@ def update_store_prices(store_path, store_keys = None):
         for key in blk_lst:
             try:
                 keys.remove(key)
-                print "{0} removed".format(key)
+                print("{0} removed".format(key))
             except:
-                print "{0} not in keys".format(key)
+                print("{0} not in keys".format(key))
 
         return keys
 
@@ -940,7 +938,7 @@ def update_store_prices(store_path, store_keys = None):
     store = _open_store(store_path)
 
     if not store_keys:
-        store_keys = store.keys()
+        store_keys = list(store.keys())
 
     store_keys = _cleaned_keys(store_keys)
     for key in store_keys:
@@ -959,7 +957,7 @@ def update_store_prices(store_path, store_keys = None):
                 tmp = tmp[tmp.columns[tmp.columns != "index"]]
                 store.put(key, tmp)
             except:
-                print "could not update {0}".format(key)
+                print("could not update {0}".format(key))
                 logging.exception("could not update {0}".format(key))
 
     store.close()
@@ -1006,7 +1004,7 @@ def zipped_time_chunks(index, interval, incl_T = False):
     ldop = index[ind]   # last day of period
     f_ind = numpy.append(True, ind[:-1])
     fdop = index[f_ind]   # first day of period
-    return zip(fdop, ldop)
+    return list(zip(fdop, ldop))
 
 def tradeplus_tchunks(weight_index, price_index):
     """
@@ -1038,7 +1036,7 @@ def tradeplus_tchunks(weight_index, price_index):
     int_fin = weight_index[1:]
     dT = pandas.DatetimeIndex([price_index[-1]])
     int_fin = int_fin.append(dT)
-    return zip(int_beg, int_fin)
+    return list(zip(int_beg, int_fin))
 
 def _open_store(store_path):
     """
@@ -1084,6 +1082,6 @@ def __get_data(ticker, api, start):
         data = reader(ticker, api, start = start)
         return data
     except:
-        print "failed for " + ticker
+        print("failed for " + ticker)
         return
 

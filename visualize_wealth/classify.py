@@ -50,12 +50,12 @@ def classify_series_with_store(series, trained_series, store_path,
         try:
             store = pandas.HDFStore(path = store_path, mode = 'r')
         except IOError:
-            print store_path + " is not a valid path to HDFStore"
+            print(("{} is not a valid path to HDFStore".format(store_path)))
             return
         rsq_d = {}
         ys = log_returns(series)
 
-        for key in store.keys():
+        for key in list(store.keys()):
             key = key.strip('/')
             p = store.get(key)
             xs = log_returns(p['Adj Close'])
@@ -105,7 +105,7 @@ def classify_series_with_online(series, trained_series,
         rsq_d = {}
         ys = log_returns(series)
         
-        for key in price_dict.keys():
+        for key in list(price_dict.keys()):
             p = price_dict[key]
             xs = log_returns(p['Adj Close'])
             ind = index_intersect(xs, ys)

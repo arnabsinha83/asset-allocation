@@ -10,9 +10,10 @@ import argparse
 import logging
 import pandas
 import numpy
-import pandas.io.data
+import pandas_datareader.data as web
+#from pandas_datareader import data, wb
 import datetime
-import urllib2
+import urllib.request
 
 from .utils import (_open_store, 
 					tradeplus_tchunks, 
@@ -43,10 +44,9 @@ def format_blotter(blotter_file):
 	elif isinstance(blotter_file, pandas.DataFrame):
 		blot = blotter_file.copy()
 	#map to ascii
-	blot['Buy/Sell'] = map(lambda x: x.encode('ascii', 'ingore'), 
-						   blot['Buy/Sell'])
+	blot['Buy/Sell'] = [x.encode('ascii', 'ingore') for x in blot['Buy/Sell']]
 	#remove whitespaces
-	blot['Buy/Sell'] = map(str.strip, blot['Buy/Sell'])
+	blot['Buy/Sell'] = list(map(str.strip, blot['Buy/Sell']))
 
 	#if the Sell values are not negative, make them negative
 	if ((blot['Buy/Sell'] == 'Sell') & (blot['Shares'] > 0.)).any():
@@ -89,8 +89,6 @@ def append_price_frame_with_dividends(ticker, start_date, end_date=None):
 		<http://www.finance.yahoo.com>`_ internet connectivity is 
 		required for the function to work properly
 	"""
-	reader = pandas.io.data.DataReader
-
 	if isinstance(start_date, str):
 		start_date = datetime.datetime.strptime(start_date, "%m/%d/%Y")
 
@@ -115,10 +113,10 @@ def append_price_frame_with_dividends(ticker, start_date, end_date=None):
 	f = '&f=' + str(end.year)
 	tail = '&g=v&ignore=.csv'
 	url = b_str + ticker + a + b + c + d + e + f + tail
-	socket = urllib2.urlopen(url)
+	socket = urllib.request.urlopen(url)
 	div_df = pandas.io.parsers.read_csv(socket, index_col = 0)
 	
-	price_df = reader(ticker, data_source = 'yahoo', 
+	price_df = web.DataReader(ticker, data_source = 'yahoo', 
 					  start = start_date, end = end_date)
 
 	return price_df.join(div_df).fillna(0.0)
@@ -220,7 +218,7 @@ def blotter_and_price_df_to_cum_shares(blotter_df, price_df):
 	end_dts = blotter_df.index[1:].append(
 		pandas.DatetimeIndex([price_df.index[-1]]))
 
-	dt_chunks = zip(start_dts, end_dts)
+	dt_chunks = list(zip(start_dts, end_dts))
 	end = 0.
 
 	for i, chunk in enumerate(dt_chunks):
@@ -552,15 +550,14 @@ def fetch_data_for_weight_allocation_method(weight_df):
 	<http://www.finance.yahoo.com>`_ internet connectivity is required 
 	for the function to work properly
 	"""
-	reader = pandas.io.data.DataReader
 	beg_port = weight_df.index.min()
 
 	d = {}
 	for ticker in weight_df.columns:
 		try:
-			d[ticker] = reader(ticker, 'yahoo', start = beg_port)
+			d[ticker] = web.DataReader(ticker, 'yahoo', start = beg_port)
 		except:
-			print "didn't work for "+ticker+"!"
+			print(("didn't work for {}!".format(ticker)))
 
 	#pull the data from Yahoo!
 	panel = pandas.Panel(d)
@@ -655,15 +652,14 @@ def fetch_data_for_initial_allocation_method(initial_weights,
 			* :meth:`panel.minor_axis` price information, specifically: 
 			  ['Open', 'Close', 'Adj Close']
 	"""
-	reader = pandas.io.data.DataReader
 	d_0 = datetime.datetime.strptime(start_date, "%m/%d/%Y")
 
 	d = {}
 	for ticker in initial_weights.index:
 		try:
-			d[ticker] = reader(ticker, 'yahoo', start  = d_0)
+			d[ticker] = web.DataReader(ticker, 'yahoo', start  = d_0)
 		except:
-			print "Didn't work for " + ticker + "!"
+			print(("Didn't work for {}!".format(ticker)))
 	
 	panel = pandas.Panel(d)
 
@@ -901,7 +897,7 @@ def _tc_helper(weight_df, share_panel, tau, meth):
 	)
 
 	#slight finegle to get the tradeplus to be what we need
-	sper, fper = zip(*tchunks)
+	sper, fper = list(zip(*tchunks))
 	sper = sper[1:]
 	fper = fper[:-1]
 
