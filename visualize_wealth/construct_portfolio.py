@@ -555,7 +555,7 @@ def fetch_data_for_weight_allocation_method(weight_df):
 	d = {}
 	for ticker in weight_df.columns:
 		try:
-			d[ticker] = web.DataReader(ticker, 'yahoo', start = beg_port)
+			d[ticker] = web.DataReader(ticker, 'google', start = beg_port.strftime("%Y%m%d"))
 		except:
 			print(("didn't work for {}!".format(ticker)))
 
@@ -657,7 +657,7 @@ def fetch_data_for_initial_allocation_method(initial_weights,
 	d = {}
 	for ticker in initial_weights.index:
 		try:
-			d[ticker] = web.DataReader(ticker, 'yahoo', start  = d_0)
+			d[ticker] = web.DataReader(name=ticker, data_source='google', start=d_0.strftime("%Y%m%d"))
 		except:
 			print(("Didn't work for {}!".format(ticker)))
 	
@@ -886,8 +886,8 @@ def _tc_helper(weight_df, share_panel, tau, meth):
 		return share_diff.mul(prices) * tau
 	
 	meth_d = {'cps': cps_cost, 
-	          'bps': bps_cost
-	          }
+			  'bps': bps_cost
+			  }
 
 	adj_q = share_panel.loc[:, :, 'Adj_Q']
 	price = share_panel.loc[:, :, 'Close']
@@ -904,17 +904,17 @@ def _tc_helper(weight_df, share_panel, tau, meth):
 	t_o = weight_df.index[0]
 
 	d = {t_o: meth_d[meth](**{'shares': adj_q.loc[t_o, :],
-						      'shares_prev': 0.,
-						      'prices': price.loc[t_o, :],
-						      'tau': tau}
-						     )
+							  'shares_prev': 0.,
+							  'prices': price.loc[t_o, :],
+							  'tau': tau}
+							 )
 	}
 
 	for beg, fin in zip(fper, sper):
 		d[fin] = meth_d[meth](**{'shares': adj_q.loc[fin, :],
-							     'shares_prev': adj_q.loc[beg, :],
-							     'tau':tau,
-							     'prices': price.loc[fin, :]}
+								 'shares_prev': adj_q.loc[beg, :],
+								 'tau':tau,
+								 'prices': price.loc[fin, :]}
 		)
 
 	tcost = pandas.DataFrame(d).transpose()
